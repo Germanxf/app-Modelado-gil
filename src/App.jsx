@@ -26,8 +26,8 @@ export default function App() {
       return saved ? JSON.parse(saved) : [
         { id: 1, title: 'Definir historias de usuario del Sprint', priority: 'alta', status: 'todo' },
         { id: 2, title: 'Modelar diagramas de casos de uso', priority: 'media', status: 'todo' },
-        { id: 3, title: 'Desarrollar componentes de la interfaz', priority: 'alta', status: 'in-progress' },
-        { id: 4, title: 'Configurar entorno de desarrollo', priority: 'baja', status: 'done' },
+        { id: 3, title: 'Desarrollar componentes de la Interfaz', priority: 'alta', status: 'in-progress' },
+        { id: 4, title: 'Configurar entorno de Desarrollo', priority: 'baja', status: 'done' },
         { id: 5, title: 'Crear repositorio en GitHub', priority: 'alta', status: 'done' }
       ];
     } catch {
