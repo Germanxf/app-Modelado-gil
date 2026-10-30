@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS Cloud Monitor - Node.js Express Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header / Barra Superior -->
+  <header class="top-nav">
+    <div class="nav-brand">
+      <div class="aws-logo-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+        </svg>
+        <span>AWS Cloud Metrics</span>
+      </div>
+      <span class="badge framework-badge">Express.js Framework</span>
+      <span class="badge db-free-badge">Zero-DB / In-Memory</span>
+    </div>
+
+    <div class="nav-status">
+      <div class="health-indicator" id="healthPill">
+        <span class="pulse-dot"></span>
+        <span id="healthText">Conectando...</span>
+      </div>
+      <div class="server-timer">
+        <span>Uptime:</span>
+        <strong id="uptimeDisplay">00:00:00</strong>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="main-container">
+    
+    <!-- Hero / Presentación para el Ingeniero -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <h1>Panel de Telemetría y Carga para Monitoreo AWS</h1>
+        <p>
+          Aplicación construida en <strong>Node.js + Express</strong> diseñada específicamente para generar tráfico, 
+          estrés de cómputo y telemetría en tiempo real para visualizar en las gráficas de 
+          <strong>AWS CloudWatch y AWS Elastic Beanstalk</strong>.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="btnVerGuia" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          ¿Qué explicarle al Ingeniero?
+        </button>
+      </div>
+    </section>
+
+    <!-- Tarjetas de Métricas en Vivo -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon icon-cpu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
+          </svg>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">CPU & Arquitectura</span>
+          <h3 id="cpuModel">Cargando...</h3>
+          <span class="metric-sub" id="cpuCores">0 Cores | OS</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon icon-ram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 19v-3M10 19v-3M14 19v-3M18 19v-3M6 8V5M10 8V5M14 8V5M18 8V5"/><rect x="2" y="8" width="20" height="8" rx="1"/>
+          </svg>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">Memoria RAM (Proceso)</span>
+          <h3 id="memoryUsed">0 MB</h3>
+          <span class="metric-sub" id="memoryTotal">RAM Total del Host: -- MB</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon icon-req">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">Peticiones Servidas (Total)</span>
+          <h3 id="totalRequests">0</h3>
+          <span class="metric-sub">Impacta métrica RequestCount</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon icon-net">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/>
+          </svg>
+        </div>
+        <div class="metric-info">
+          <span class="metric-label">Entorno AWS / Puerto</span>
+          <h3 id="awsEnvironment">Puerto :8080</h3>
+          <span class="metric-sub" id="awsRegion">Región: Auto-detectada</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Centro de Pruebas y Generador de Tráfico (Para mover las gráficas de AWS) -->
+    <section class="testing-center">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="pill-number">1</span>
+          <h2>Generadores de Carga para Gráficas de AWS</h2>
+        </div>
+        <p>Haz clic en cualquiera de estos botones para forzar actividad que se reflejará en las gráficas de AWS Console.</p>
+      </div>
+
+      <div class="test-actions-grid">
+        <!-- Acción 1: Estrés de CPU -->
+        <div class="action-card">
+          <div class="action-header">
+            <span class="action-badge badge-warning">Gráfica: CPUUtilization</span>
+            <h4>🔥 Estrés de CPU (3 Segundos)</h4>
+          </div>
+          <p>Ejecuta operaciones matemáticas continuas para forzar el uso de procesador del servidor AWS.</p>
+          <div class="action-footer">
+            <button id="btnStressCpu" class="btn btn-warning">
+              <span class="btn-text">Disparar Carga de CPU</span>
+              <span class="btn-spinner hidden"></span>
+            </button>
+            <span class="action-tip">Sube el pico de CPU en AWS</span>
+          </div>
+        </div>
+
+        <!-- Acción 2: Ráfaga de Tráfico -->
+        <div class="action-card">
+          <div class="action-header">
+            <span class="action-badge badge-info">Gráfica: RequestCount</span>
+            <h4>🚀 Ráfaga de Tráfico Masivo</h4>
+          </div>
+          <p>Dispara ráfagas de 50 a 150 peticiones simultáneas hacia el servidor para disparar el contador de solicitudes.</p>
+          <div class="traffic-options">
+            <button class="btn-chip" data-count="30">30 Reqs</button>
+            <button class="btn-chip active" data-count="60">60 Reqs</button>
+            <button class="btn-chip" data-count="120">120 Reqs</button>
+          </div>
+          <div class="action-footer">
+            <button id="btnSendTraffic" class="btn btn-primary">
+              <span class="btn-text">Enviar Ráfaga</span>
+              <span class="btn-spinner hidden"></span>
+            </button>
+            <div id="trafficProgress" class="progress-bar hidden">
+              <div class="progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acción 3: Simular Latencia -->
+        <div class="action-card">
+          <div class="action-header">
+            <span class="action-badge badge-accent">Gráfica: TargetResponseTime</span>
+            <h4>⏱️ Simular Latencia (Delay 800ms)</h4>
+          </div>
+          <p>Provoca un tiempo de respuesta intencional para ver el aumento en la curva de latencia en CloudWatch.</p>
+          <div class="action-footer">
+            <button id="btnSlowReq" class="btn btn-accent">
+              <span class="btn-text">Probar Latencia</span>
+              <span class="btn-spinner hidden"></span>
+            </button>
+            <span id="slowResultText" class="action-tip">Respuesta normal: &lt; 20ms</span>
+          </div>
+        </div>
+
+        <!-- Acción 4: Simular Códigos HTTP (Errores) -->
+        <div class="action-card">
+          <div class="action-header">
+            <span class="action-badge badge-danger">Gráfica: HTTPCode_Target_4XX/5XX</span>
+            <h4>⚠️ Simular Códigos HTTP</h4>
+          </div>
+          <p>Envía peticiones que retornan 404 Not Found o 500 Server Error para evidenciar anomalías en las gráficas.</p>
+          <div class="status-buttons">
+            <button class="btn-mini btn-mini-success" data-status="200">200 OK</button>
+            <button class="btn-mini btn-mini-warning" data-status="404">404 Error</button>
+            <button class="btn-mini btn-mini-danger" data-status="500">500 Fail</button>
+          </div>
+          <div class="action-footer">
+            <span id="statusCodeResult" class="action-tip">Listo para probar estados</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mini Gráfica Frontend y Registro Local (LocalStorage) -->
+    <section class="live-chart-section">
+      <div class="section-header">
+        <div class="section-title">
+          <span class="pill-number">2</span>
+          <h2>Actividad en Tiempo Real y Registro Local</h2>
+        </div>
+        <p>Historial guardado en el navegador (LocalStorage) de cada prueba ejecutada.</p>
+      </div>
+
+      <div class="dashboard-split">
+        <!-- Canvas de Gráfica en vivo -->
+        <div class="chart-box">
+          <div class="chart-header">
+            <h4>Ritmo de Peticiones Locales (Últimos segundos)</h4>
+            <span class="chart-live-badge"><span class="pulse-dot-mini"></span> EN VIVO</span>
+          </div>
+          <canvas id="realtimeChart" width="600" height="200"></canvas>
+        </div>
+
+        <!-- Historial en LocalStorage -->
+        <div class="history-box">
+          <div class="history-header">
+            <h4>Historial de Eventos (LocalStorage)</h4>
+            <button id="btnClearHistory" class="btn-text-only">Limpiar</button>
+          </div>
+          <div class="history-list" id="historyList">
+            <div class="empty-state">No hay eventos aún. Haz clic en los botones de carga arriba.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal / Sección de Explicación para el Ingeniero -->
+    <section id="guiaExplicacion" class="guide-section">
+      <div class="guide-header">
+        <div class="guide-title">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+          <h3>Guión para Explicar tu Deber al Ingeniero / Profesor</h3>
+        </div>
+      </div>
+      <div class="guide-body">
+        <div class="guide-step">
+          <span class="step-num">Punto 1</span>
+          <div>
+            <strong>¿Por qué se usó un framework (Node.js con Express)?</strong>
+            <p>
+              Explícale: <em>"Ingeniero, no usamos solo un HTML estático simple porque un archivo plano no tiene lógica de servidor. 
+              Utilizamos <strong>Express.js</strong> para manejar un servidor backend real capaz de recibir solicitudes concurrentes, 
+              administrar estados HTTP, exponer endpoints de métricas y realizar cómputo real en el procesador de AWS."</em>
+            </p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <span class="step-num">Punto 2</span>
+          <div>
+            <strong>¿Por qué no requiere Base de Datos externa?</strong>
+            <p>
+              Explícale: <em>"Para el objetivo de monitoreo y telemetría de infraestructura, la aplicación maneja el estado de métricas en memoria del proceso (In-Memory) y el historial en LocalStorage del cliente. Esto evita costos de instancias RDS y permite enfocarnos 100% en el rendimiento del cómputo y la red del servidor web."</em>
+            </p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <span class="step-num">Punto 3</span>
+          <div>
+            <strong>¿Cuáles son las gráficas clave en AWS Console (CloudWatch / Elastic Beanstalk)?</strong>
+            <p>
+              Cuando abras AWS Console frente al Ingeniero, muéstrale estas 4 gráficas clave:
+            </p>
+            <ul class="guide-bullets">
+              <li><strong>CPUUtilization (%):</strong> Sube cuando presionas el botón "Estrés de CPU", demostrando que AWS detecta el incremento de carga de trabajo.</li>
+              <li><strong>RequestCount (Suma de peticiones):</strong> Registra las llamadas HTTP cuando lanzas ráfagas de tráfico masivo.</li>
+              <li><strong>TargetResponseTime / Latency:</strong> Muestra el tiempo en milisegundos que tarda el servidor en responder.</li>
+              <li><strong>Environment Health (Estado de Salud):</strong> AWS valida el endpoint <code>/health</code> con código 200 OK para marcar la aplicación en verde (OK).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="main-footer">
+    <p>Desarrollado para Deber de Modelado Ágil / Computación en la Nube &bull; AWS Ready</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
