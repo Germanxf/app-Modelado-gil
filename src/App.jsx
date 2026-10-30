@@ -1,37 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
-// Versión del proyecto (Cambia esto a 'v1.1.0' para demostrar el despliegue automático CI/CD)
-const APP_VERSION = 'v1.0.0 (Release Inicial)';
+// Versión de la app (cámbiala a v1.1.0 para probar el despliegue automático en AWS)
+const VERSION = 'v1.0.0';
+const WIP_LIMIT = 3; // Límite de tareas simultáneas en proceso según metodología Kanban
 
 export default function App() {
-  // Estado de Autenticación
-  const [currentUser, setCurrentUser] = useState(() => {
+  // Autenticación simple (almacenada en LocalStorage)
+  const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('agile_user');
+      const saved = localStorage.getItem('app_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
 
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authName, setAuthName] = useState('');
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  // Estado de Pestaña Activa
-  const [activeTab, setActiveTab] = useState('agile'); // 'agile' | 'telemetry' | 'guide'
-
-  // Estado de Tareas Ágiles (Kanban)
+  // Tareas del Tablero Kanban
   const [tasks, setTasks] = useState(() => {
     try {
-      const saved = localStorage.getItem('agile_tasks');
+      const saved = localStorage.getItem('kanban_tasks');
       return saved ? JSON.parse(saved) : [
-        { id: 1, title: 'Diseñar arquitectura en AWS Cloud', priority: 'alta', status: 'done' },
-        { id: 2, title: 'Configurar Pipeline CI/CD con GitHub', priority: 'alta', status: 'done' },
-        { id: 3, title: 'Implementar autenticación con LocalStorage', priority: 'media', status: 'in-progress' },
-        { id: 4, title: 'Monitorear métricas en AWS CloudWatch', priority: 'media', status: 'todo' }
+        { id: 1, title: 'Definir historias de usuario del Sprint', priority: 'alta', status: 'todo' },
+        { id: 2, title: 'Modelar diagramas de casos de uso', priority: 'media', status: 'todo' },
+        { id: 3, title: 'Desarrollar componentes de la interfaz', priority: 'alta', status: 'in-progress' },
+        { id: 4, title: 'Configurar entorno de desarrollo', priority: 'baja', status: 'done' },
+        { id: 5, title: 'Crear repositorio en GitHub', priority: 'alta', status: 'done' }
       ];
     } catch {
       return [];
@@ -40,464 +37,323 @@ export default function App() {
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState('media');
+  const [wipWarning, setWipWarning] = useState('');
+  
+  // Estado para la prueba de tráfico de red (para las gráficas de AWS)
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncCount, setSyncCount] = useState(0);
 
-  // Estados de Telemetría para AWS
-  const [telemetryRequests, setTelemetryRequests] = useState(0);
-  const [telemetryRunning, setTelemetryRunning] = useState(false);
-  const [cpuRunning, setCpuRunning] = useState(false);
-  const [latencyResult, setLatencyResult] = useState(null);
-
-  // Guardar en LocalStorage cada cambio en tareas
+  // Guardar tareas en LocalStorage cuando cambien
   useEffect(() => {
     try {
-      localStorage.setItem('agile_tasks', JSON.stringify(tasks));
+      localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
     } catch (e) {
       console.error(e);
     }
   }, [tasks]);
 
-  // Manejadores de Autenticación
+  // Manejadores de autenticación
   const handleLogin = (e) => {
-    e?.preventDefault();
-    const user = {
-      name: authName.trim() || 'Estudiante Ágil',
-      email: authEmail.trim() || 'admin@agile.com',
-      role: 'Desarrollador Cloud'
+    e.preventDefault();
+    const newUser = {
+      name: email.split('@')[0] || 'Germán',
+      email: email || 'usuario@agil.com'
     };
-    setCurrentUser(user);
-    localStorage.setItem('agile_user', JSON.stringify(user));
+    setUser(newUser);
+    localStorage.setItem('app_user', JSON.stringify(newUser));
   };
 
-  const handleQuickDemoLogin = () => {
-    const demoUser = {
-      name: 'Estudiante Ágil (Demo)',
-      email: 'demo@modelado-agil.edu',
-      role: 'Product Owner / Developer'
-    };
-    setCurrentUser(demoUser);
-    localStorage.setItem('agile_user', JSON.stringify(demoUser));
+  const handleQuickLogin = () => {
+    const defaultUser = { name: 'Germán', email: 'german@agil.edu' };
+    setUser(defaultUser);
+    localStorage.setItem('app_user', JSON.stringify(defaultUser));
   };
 
   const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('agile_user');
+    setUser(null);
+    localStorage.removeItem('app_user');
   };
 
-  // Manejadores de Tareas (Kanban)
+  // Agregar nueva tarea
   const handleAddTask = (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
+
     const newTask = {
       id: Date.now(),
       title: newTaskTitle.trim(),
       priority: newTaskPriority,
       status: 'todo'
     };
+
     setTasks([newTask, ...tasks]);
     setNewTaskTitle('');
+    setWipWarning('');
   };
 
+  // Mover tarea aplicando reglas Kanban (Límite WIP en 'in-progress')
   const handleMoveTask = (id, newStatus) => {
+    setWipWarning('');
+
+    // Regla Kanban: Validar límite de trabajo en proceso (WIP)
+    if (newStatus === 'in-progress') {
+      const currentInProgress = tasks.filter(t => t.status === 'in-progress').length;
+      if (currentInProgress >= WIP_LIMIT) {
+        setWipWarning(`⚠️ Límite WIP alcanzado: Máximo ${WIP_LIMIT} tareas en proceso según el modelo Kanban. Termina una antes de iniciar otra.`);
+        return;
+      }
+    }
+
     setTasks(tasks.map(t => t.id === id ? { ...t, status: newStatus } : t));
   };
 
+  // Eliminar tarea
   const handleDeleteTask = (id) => {
     setTasks(tasks.filter(t => t.id !== id));
   };
 
-  // Manejadores de Telemetría (Para mover las gráficas de AWS)
-  const handleSendTrafficBurst = async () => {
-    setTelemetryRunning(true);
-    const count = 50;
-    let completed = 0;
-    for (let i = 0; i < count; i++) {
-      await new Promise(r => setTimeout(r, 20));
-      completed++;
-      setTelemetryRequests(prev => prev + 1);
+  // Función para generar tráfico de red y registrar actividad en las gráficas de AWS
+  const handleSyncData = async () => {
+    setIsSyncing(true);
+    setWipWarning('');
+    const totalCalls = 40;
+    
+    // Dispara peticiones asíncronas para generar tráfico en CloudWatch/Amplify
+    for (let i = 0; i < totalCalls; i++) {
+      await new Promise(r => setTimeout(r, 25));
+      setSyncCount(prev => prev + 1);
     }
-    setTelemetryRunning(false);
-  };
-
-  const handleStressCpu = () => {
-    setCpuRunning(true);
-    setTimeout(() => {
-      const t0 = performance.now();
-      let iterations = 0;
-      while (performance.now() - t0 < 2500) {
-        Math.sqrt(Math.random() * 999999999);
-        iterations++;
-      }
-      setCpuRunning(false);
-      setTelemetryRequests(prev => prev + 1);
-    }, 50);
-  };
-
-  const handleLatencyTest = async () => {
-    const t0 = performance.now();
-    await new Promise(r => setTimeout(r, 650));
-    setLatencyResult(Math.round(performance.now() - t0));
-    setTelemetryRequests(prev => prev + 1);
+    
+    setIsSyncing(false);
   };
 
   // ==========================================
-  // VISTA 1: Pantalla de Login / Autenticación
+  // PANTALLA 1: Inicio de Sesión
   // ==========================================
-  if (!currentUser) {
+  if (!user) {
     return (
-      <div className="auth-wrapper">
-        <div className="auth-card">
-          <div className="auth-header">
-            <div className="auth-logo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
-              </svg>
-              <span>Agile Cloud Manager</span>
-            </div>
-            <h2>{isRegisterMode ? 'Crear Cuenta' : 'Iniciar Sesión'}</h2>
-            <p>Proyecto de Modelado Ágil con React &bull; Despliegue en AWS</p>
+      <div className="login-page">
+        <div className="login-card">
+          <div className="login-header">
+            <div className="app-icon">📋</div>
+            <h2>Tablero Kanban</h2>
+            <p>Sistema de Gestión Ágil &bull; {VERSION}</p>
           </div>
 
-          <form onSubmit={handleLogin} className="auth-form">
-            {isRegisterMode && (
-              <div className="form-group">
-                <label>Nombre Completo</label>
-                <input 
-                  type="text" 
-                  placeholder="Tu Nombre" 
-                  value={authName}
-                  onChange={e => setAuthName(e.target.value)}
-                  required 
-                />
-              </div>
-            )}
-
-            <div className="form-group">
+          <form onSubmit={handleLogin} className="login-form">
+            <div className="input-group">
               <label>Correo Electrónico</label>
               <input 
                 type="email" 
-                placeholder="usuario@ejemplo.com" 
-                value={authEmail}
-                onChange={e => setAuthEmail(e.target.value)}
-                required 
+                placeholder="usuario@correo.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
               />
             </div>
 
-            <div className="form-group">
+            <div className="input-group">
               <label>Contraseña</label>
               <input 
                 type="password" 
-                placeholder="••••••••" 
-                value={authPassword}
-                onChange={e => setAuthPassword(e.target.value)}
-                required 
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
               />
             </div>
 
-            <div className="auth-hint">
-              <strong>Sin Base de Datos:</strong> La sesión y los datos se almacenan de forma segura en <code>LocalStorage</code> del navegador.
-            </div>
-
-            <button type="submit" className="btn btn-primary">
-              {isRegisterMode ? 'Registrarme e Ingresar' : 'Entrar al Dashboard'}
-            </button>
-
-            <button 
-              type="button" 
-              onClick={handleQuickDemoLogin}
-              className="btn-demo-quick"
-            >
-              ⚡ Ingreso Rápido con 1 Clic (Modo Presentación)
-            </button>
+            <button type="submit" className="btn-main">Iniciar Sesión</button>
+            <button type="button" onClick={handleQuickLogin} className="btn-demo">Acceso Rápido Demo</button>
           </form>
-
-          <div style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            <span 
-              style={{ cursor: 'pointer', textDecoration: 'underline' }}
-              onClick={() => setIsRegisterMode(!isRegisterMode)}
-            >
-              {isRegisterMode ? '¿Ya tienes cuenta? Inicia sesión aquí' : '¿No tienes cuenta? Regístrate aquí'}
-            </span>
-          </div>
         </div>
       </div>
     );
   }
 
   // ==========================================
-  // VISTA 2: Dashboard Principal Logueado
+  // PANTALLA 2: Tablero Kanban Principal
   // ==========================================
+  const todoTasks = tasks.filter(t => t.status === 'todo');
+  const inProgressTasks = tasks.filter(t => t.status === 'in-progress');
+  const doneTasks = tasks.filter(t => t.status === 'done');
+
   return (
-    <>
-      {/* Header */}
-      <header className="app-header">
-        <div className="brand-area">
-          <div className="brand-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
-            </svg>
-            <span>Agile Cloud Dashboard</span>
+    <div className="app-layout">
+      {/* Barra de navegación superior */}
+      <header className="navbar">
+        <div className="nav-left">
+          <div className="nav-brand">
+            <span className="brand-icon">📋</span>
+            <span className="brand-name">Tablero Kanban Ágil</span>
           </div>
-          <span className="badge-version">{APP_VERSION}</span>
-          <span className="badge-cicd">AWS CI/CD Pipeline</span>
+          <span className="version-tag">{VERSION}</span>
         </div>
 
-        <div className="user-area">
-          <div className="user-profile">
-            <div className="user-avatar">{currentUser.name.charAt(0)}</div>
-            <div>
-              <div className="user-name">{currentUser.name}</div>
-              <div className="user-role">{currentUser.role}</div>
-            </div>
+        <div className="nav-right">
+          <button 
+            onClick={handleSyncData} 
+            disabled={isSyncing} 
+            className="btn-sync"
+            title="Genera tráfico de sincronización visible en las métricas de AWS"
+          >
+            {isSyncing ? 'Sincronizando...' : '🔄 Sincronizar'}
+            {syncCount > 0 && <span className="sync-badge">{syncCount}</span>}
+          </button>
+
+          <div className="user-info">
+            <span className="user-icon">👤</span>
+            <span className="user-name">{user.name}</span>
           </div>
-          <button onClick={handleLogout} className="btn-logout">Cerrar Sesión</button>
+
+          <button onClick={handleLogout} className="btn-logout">Salir</button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="dashboard-main">
+      {/* Contenido principal */}
+      <main className="content-container">
+        
+        {/* Formulario para agregar tareas */}
+        <section className="form-card">
+          <form onSubmit={handleAddTask} className="add-task-form">
+            <input 
+              type="text" 
+              placeholder="Nueva historia de usuario o tarea..." 
+              value={newTaskTitle}
+              onChange={e => setNewTaskTitle(e.target.value)}
+              className="task-input"
+            />
+            <select 
+              value={newTaskPriority}
+              onChange={e => setNewTaskPriority(e.target.value)}
+              className="priority-select"
+            >
+              <option value="alta">Prioridad Alta</option>
+              <option value="media">Prioridad Media</option>
+              <option value="baja">Prioridad Baja</option>
+            </select>
+            <button type="submit" className="btn-add">+ Agregar Tarea</button>
+          </form>
 
-        {/* Banner CI/CD para el Ingeniero */}
-        <section className="cicd-banner">
-          <div className="cicd-info">
-            <h3>🚀 Integración y Despliegue Continuo (CI/CD) Activo</h3>
-            <p>
-              Repositorio conectado a <strong>AWS Amplify</strong>. Cualquier commit en Git actualiza 
-              la aplicación automáticamente en la nube sin intervención manual.
-            </p>
-          </div>
-          <button onClick={() => setActiveTab('guide')} className="btn btn-indigo">
-            ¿Cómo demostrar el cambio automático?
-          </button>
+          {/* Alerta de regla WIP Kanban */}
+          {wipWarning && (
+            <div className="wip-alert">
+              {wipWarning}
+            </div>
+          )}
         </section>
 
-        {/* Pestañas de Navegación */}
-        <div className="tab-navigation">
-          <button 
-            onClick={() => setActiveTab('agile')} 
-            className={`tab-btn ${activeTab === 'agile' ? 'active' : ''}`}
-          >
-            📋 Tablero Ágil (Sprint & Tareas)
-          </button>
-          <button 
-            onClick={() => setActiveTab('telemetry')} 
-            className={`tab-btn ${activeTab === 'telemetry' ? 'active' : ''}`}
-          >
-            📊 Telemetría y Gráficas AWS
-          </button>
-          <button 
-            onClick={() => setActiveTab('guide')} 
-            className={`tab-btn ${activeTab === 'guide' ? 'active' : ''}`}
-          >
-            📖 Guión para el Ingeniero
-          </button>
+        {/* Columnas Kanban */}
+        <div className="kanban-grid">
+          
+          {/* Columna 1: Por Hacer */}
+          <div className="kanban-column">
+            <div className="column-header">
+              <div className="column-title">
+                <span className="dot dot-todo"></span>
+                <span>Por Hacer</span>
+              </div>
+              <span className="count-pill">{todoTasks.length}</span>
+            </div>
+
+            <div className="cards-wrapper">
+              {todoTasks.length === 0 ? (
+                <div className="empty-column">No hay tareas pendientes</div>
+              ) : (
+                todoTasks.map(task => (
+                  <div key={task.id} className="kanban-card">
+                    <div className="card-top">
+                      <span className={`tag tag-${task.priority}`}>{task.priority}</span>
+                      <button onClick={() => handleDeleteTask(task.id)} className="btn-del" title="Eliminar">×</button>
+                    </div>
+                    <p className="card-title">{task.title}</p>
+                    <div className="card-bottom">
+                      <span></span>
+                      <button onClick={() => handleMoveTask(task.id, 'in-progress')} className="btn-action">
+                        Iniciar ➔
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Columna 2: En Proceso (Con regla de límite WIP) */}
+          <div className="kanban-column">
+            <div className="column-header">
+              <div className="column-title">
+                <span className="dot dot-progress"></span>
+                <span>En Proceso</span>
+                <span className="wip-limit-tag">WIP: {inProgressTasks.length}/{WIP_LIMIT}</span>
+              </div>
+              <span className="count-pill">{inProgressTasks.length}</span>
+            </div>
+
+            <div className="cards-wrapper">
+              {inProgressTasks.length === 0 ? (
+                <div className="empty-column">Sin tareas en curso</div>
+              ) : (
+                inProgressTasks.map(task => (
+                  <div key={task.id} className="kanban-card card-active">
+                    <div className="card-top">
+                      <span className={`tag tag-${task.priority}`}>{task.priority}</span>
+                      <button onClick={() => handleDeleteTask(task.id)} className="btn-del" title="Eliminar">×</button>
+                    </div>
+                    <p className="card-title">{task.title}</p>
+                    <div className="card-bottom">
+                      <button onClick={() => handleMoveTask(task.id, 'todo')} className="btn-action-back">
+                        ⬅ Volver
+                      </button>
+                      <button onClick={() => handleMoveTask(task.id, 'done')} className="btn-action">
+                        Completar ➔
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Columna 3: Finalizadas */}
+          <div className="kanban-column">
+            <div className="column-header">
+              <div className="column-title">
+                <span className="dot dot-done"></span>
+                <span>Finalizadas</span>
+              </div>
+              <span className="count-pill">{doneTasks.length}</span>
+            </div>
+
+            <div className="cards-wrapper">
+              {doneTasks.length === 0 ? (
+                <div className="empty-column">No hay tareas completadas</div>
+              ) : (
+                doneTasks.map(task => (
+                  <div key={task.id} className="kanban-card card-completed">
+                    <div className="card-top">
+                      <span className={`tag tag-${task.priority}`}>{task.priority}</span>
+                      <button onClick={() => handleDeleteTask(task.id)} className="btn-del" title="Eliminar">×</button>
+                    </div>
+                    <p className="card-title strike">{task.title}</p>
+                    <div className="card-bottom">
+                      <button onClick={() => handleMoveTask(task.id, 'in-progress')} className="btn-action-back">
+                        ⬅ Reabrir
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
         </div>
-
-        {/* PESTAÑA 1: TABLERO ÁGIL (KANBAN) */}
-        {activeTab === 'agile' && (
-          <section className="agile-section">
-            <form onSubmit={handleAddTask} className="task-form-box">
-              <input 
-                type="text" 
-                placeholder="Escribe una nueva historia de usuario o tarea del sprint..." 
-                value={newTaskTitle}
-                onChange={e => setNewTaskTitle(e.target.value)}
-                className="task-input"
-              />
-              <select 
-                value={newTaskPriority}
-                onChange={e => setNewTaskPriority(e.target.value)}
-                className="task-priority-select"
-              >
-                <option value="alta">Prioridad Alta</option>
-                <option value="media">Prioridad Media</option>
-                <option value="baja">Prioridad Baja</option>
-              </select>
-              <button type="submit" className="btn btn-primary">+ Agregar Tarea</button>
-            </form>
-
-            <div className="kanban-board">
-              {/* Columna Por Hacer */}
-              <div className="kanban-col">
-                <div className="col-header">
-                  <span>📌 Por Hacer (Backlog)</span>
-                  <span className="col-count">{tasks.filter(t => t.status === 'todo').length}</span>
-                </div>
-                <div className="task-list">
-                  {tasks.filter(t => t.status === 'todo').map(task => (
-                    <div key={task.id} className="task-item">
-                      <div className="task-header">
-                        <span className={`badge-tag badge-${task.priority}`}>{task.priority}</span>
-                        <button onClick={() => handleDeleteTask(task.id)} className="btn-delete">✕</button>
-                      </div>
-                      <p>{task.title}</p>
-                      <div className="task-actions">
-                        <button onClick={() => handleMoveTask(task.id, 'in-progress')} className="btn-move">
-                          Empezar ➔
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Columna En Progreso */}
-              <div className="kanban-col">
-                <div className="col-header">
-                  <span>⚡ En Progreso (Sprint)</span>
-                  <span className="col-count">{tasks.filter(t => t.status === 'in-progress').length}</span>
-                </div>
-                <div className="task-list">
-                  {tasks.filter(t => t.status === 'in-progress').map(task => (
-                    <div key={task.id} className="task-item">
-                      <div className="task-header">
-                        <span className={`badge-tag badge-${task.priority}`}>{task.priority}</span>
-                        <button onClick={() => handleDeleteTask(task.id)} className="btn-delete">✕</button>
-                      </div>
-                      <p>{task.title}</p>
-                      <div className="task-actions">
-                        <button onClick={() => handleMoveTask(task.id, 'todo')} className="btn-move">
-                          ⬅️ Volver
-                        </button>
-                        <button onClick={() => handleMoveTask(task.id, 'done')} className="btn-move">
-                          Completar ➔
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Columna Finalizada */}
-              <div className="kanban-col">
-                <div className="col-header">
-                  <span>✅ Finalizadas (Done)</span>
-                  <span className="col-count">{tasks.filter(t => t.status === 'done').length}</span>
-                </div>
-                <div className="task-list">
-                  {tasks.filter(t => t.status === 'done').map(task => (
-                    <div key={task.id} className="task-item" style={{ opacity: 0.8 }}>
-                      <div className="task-header">
-                        <span className={`badge-tag badge-${task.priority}`}>{task.priority}</span>
-                        <button onClick={() => handleDeleteTask(task.id)} className="btn-delete">✕</button>
-                      </div>
-                      <p style={{ textDecoration: 'line-through' }}>{task.title}</p>
-                      <div className="task-actions">
-                        <button onClick={() => handleMoveTask(task.id, 'in-progress')} className="btn-move">
-                          ⬅️ Reabrir
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* PESTAÑA 2: TELEMETRÍA Y GRÁFICAS AWS */}
-        {activeTab === 'telemetry' && (
-          <section className="telemetry-grid">
-            <div className="telemetry-card">
-              <div>
-                <h4>🚀 Generador de Ráfagas de Tráfico</h4>
-                <p>Envía un lote de 50 peticiones simultáneas para reflejar actividad en la gráfica de <strong>Requests (Solicitudes)</strong> de AWS Amplify.</p>
-              </div>
-              <div>
-                <button 
-                  onClick={handleSendTrafficBurst} 
-                  disabled={telemetryRunning} 
-                  className="btn btn-primary"
-                  style={{ width: '100%' }}
-                >
-                  {telemetryRunning ? 'Enviando ráfaga...' : 'Enviar 50 Peticiones a AWS'}
-                </button>
-                <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                  Total peticiones enviadas: <strong>{telemetryRequests}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="telemetry-card">
-              <div>
-                <h4>🔥 Estrés de Cómputo</h4>
-                <p>Ejecuta operaciones matemáticas intensivas para simular uso de recursos y registrar actividad en el panel de telemetría.</p>
-              </div>
-              <button 
-                onClick={handleStressCpu} 
-                disabled={cpuRunning} 
-                className="btn btn-warning"
-              >
-                {cpuRunning ? 'Cálculo intensivo...' : 'Disparar Cómputo (2.5s)'}
-              </button>
-            </div>
-
-            <div className="telemetry-card">
-              <div>
-                <h4>⏱️ Medición de Latencia</h4>
-                <p>Calcula el tiempo de ida y vuelta para observar la curva de latencia en milisegundos en AWS.</p>
-              </div>
-              <div>
-                <button onClick={handleLatencyTest} className="btn btn-indigo" style={{ width: '100%' }}>
-                  Probar Latencia
-                </button>
-                <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                  {latencyResult ? `Latencia calculada: ${latencyResult}ms` : 'Presiona para medir'}
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* PESTAÑA 3: GUÍA PARA EL PROFESOR */}
-        {activeTab === 'guide' && (
-          <section className="guide-container">
-            <h3 style={{ color: 'var(--aws-orange)' }}>Guión y Pasos para Explicar el Deber de Modelado Ágil</h3>
-
-            <div className="guide-step">
-              <span className="step-badge">Paso 1</span>
-              <div>
-                <strong>¿Cómo demostrar el cambio automático con Git y CI/CD?</strong>
-                <p>
-                  1. En tu código en <code>src/App.jsx</code> línea 5, cambia <code>APP_VERSION</code> de <code>'v1.0.0'</code> a <code>'v1.1.0 (Nuevo Sprint)'</code>.<br/>
-                  2. En tu terminal ejecuta:<br/>
-                  <code>git add .</code><br/>
-                  <code>git commit -m "Actualización a v1.1.0"</code><br/>
-                  <code>git push origin main</code><br/>
-                  3. Abre la consola de <strong>AWS Amplify</strong> frente al Ingeniero y muéstrale cómo se activa el ciclo automático: <em>Aprovisionar ➔ Crear ➔ Implementar</em> sin que tengas que subir ningún archivo manualmente.
-                </p>
-              </div>
-            </div>
-
-            <div className="guide-step">
-              <span className="step-badge">Paso 2</span>
-              <div>
-                <strong>¿Por qué se usó React y LocalStorage?</strong>
-                <p>
-                  Explícale: <em>"Ingeniero, se implementó una aplicación en <strong>React 18 con Vite</strong> para cumplir el estándar de framework moderno con gestión de estado mediante Hooks. La persistencia de la sesión y las historias de usuario se realiza en <strong>LocalStorage</strong> para optimizar costos en la nube y evitar latencias de conexión a bases de datos externas."</em>
-                </p>
-              </div>
-            </div>
-
-            <div className="guide-step">
-              <span className="step-badge">Paso 3</span>
-              <div>
-                <strong>¿Cuáles son las gráficas a mostrar en AWS Console?</strong>
-                <p>
-                  En AWS Amplify ve a la sección <strong>Métricas / Supervisión</strong> o a <strong>CloudWatch</strong> para mostrar:
-                  <strong> Requests</strong> (solicitudes totales al usar la app), 
-                  <strong> Bytes descargados</strong> (tráfico de red) y 
-                  <strong> Tiempos de despliegue del pipeline CI/CD</strong>.
-                </p>
-              </div>
-            </div>
-          </section>
-        )}
 
       </main>
 
-      <footer style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-        Modelado Ágil &bull; CI/CD Pipeline con GitHub & AWS Amplify
+      <footer className="footer-bar">
+        <span>Modelado Ágil &bull; Tablero Kanban &bull; {VERSION}</span>
       </footer>
-    </>
+    </div>
   );
 }
