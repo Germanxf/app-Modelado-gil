@@ -30,6 +30,6 @@ describe('Tablero Kanban', () => {
     fireEvent.click(screen.getByRole('button', { name: /Acceso Rápido Demo/i }));
     fireEvent.click(screen.getByRole('button', { name: /Agregar Tarea/i }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent('ERROR_PROVOCADO_CI');
+    expect(screen.getByRole('alert')).toHaveTextContent('Escribe una tarea antes de agregarla.');
   });
 });
