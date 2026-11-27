@@ -26,8 +26,8 @@ export default function App() {
       return saved ? JSON.parse(saved) : [
         { id: 1, title: 'Definir historias de usuario del Sprint', priority: 'alta', status: 'todo' },
         { id: 2, title: 'Modelar diagramas de casos de uso', priority: 'media', status: 'todo' },
-        { id: 3, title: 'Desarrollar componentes de la Interfaz', priority: 'alta', status: 'in-progress' },
-        { id: 4, title: 'Configurar entorno de Desarrollo', priority: 'baja', status: 'done' },
+        { id: 3, title: 'Desarrollar componentes de la interfaz', priority: 'alta', status: 'in-progress' },
+        { id: 4, title: 'Configurar entorno de desarrollo', priority: 'baja', status: 'done' },
         { id: 5, title: 'Crear repositorio en GitHub', priority: 'alta', status: 'done' }
       ];
     } catch {
@@ -77,7 +77,10 @@ export default function App() {
   // Agregar nueva tarea
   const handleAddTask = (e) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim()) {
+      setWipWarning('Escribe una tarea antes de agregarla.');
+      return;
+    }
 
     const newTask = {
       id: Date.now(),
@@ -127,9 +130,9 @@ export default function App() {
     setIsSyncing(false);
   };
 
-  // ==========================================
+
   // PANTALLA 1: Inicio de Sesión
-  // ==========================================
+
   if (!user) {
     return (
       <div className="login-page">
@@ -171,9 +174,9 @@ export default function App() {
     );
   }
 
-  // ==========================================
+
   // PANTALLA 2: Tablero Kanban Principal
-  // ==========================================
+
   const todoTasks = tasks.filter(t => t.status === 'todo');
   const inProgressTasks = tasks.filter(t => t.status === 'in-progress');
   const doneTasks = tasks.filter(t => t.status === 'done');
@@ -237,7 +240,7 @@ export default function App() {
 
           {/* Alerta de regla WIP Kanban */}
           {wipWarning && (
-            <div className="wip-alert">
+            <div className="wip-alert" role="alert" aria-live="polite">
               {wipWarning}
             </div>
           )}
